@@ -259,8 +259,10 @@ Download the complete example configuration files from the GitHub repository.
 
 ## 📝 Credits & License
 
-**Created by**: [Exodus DayZ Forge](https://discord.gg/pWd8adrm)  
+**Created by**: Exodus DayZ Forge
+**Developer**: MrNicerDicer  
 **Support**: Join our Discord for help and updates
+**Discord**: [https://discord.gg/Yz8S558D6M](https://discord.gg/Yz8S558D6M)
 
 This system is free to use and modify. If you adapt or redistribute this code, please provide appropriate credits to the original creator (MrNicerDicer).
 
