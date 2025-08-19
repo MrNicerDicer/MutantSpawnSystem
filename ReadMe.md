@@ -1,4 +1,4 @@
-# DayZ Mutant Spawn System v1.0
+# DayZ Mutant Spawn System v2.1
 
 An advanced JSON-based spawn system for DayZ 1.28 that allows spawning zombies, mutants, and animals in configurable zones.
 
