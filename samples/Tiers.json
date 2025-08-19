@@ -1,0 +1,33 @@
+{
+    "tiers": {
+        "1": {
+            "name": "Basic Zombies",
+            "classnames": [
+                "ZmbM_HunterOld_Autumn",
+                "ZmbM_HunterOld_Spring",
+                "ZmbF_SurvivorNormal_Blue",
+                "ZmbF_SurvivorNormal_Red",
+                "ZmbM_FarmerFat_Beige",
+                "ZmbM_CitizenASkinny",
+                "ZmbM_CitizenBFat"
+            ]
+        },
+        "2": {
+            "name": "Military Zombies",
+            "classnames": [
+                "ZmbM_SoldierNormal",
+                "ZmbM_PatrolNormal_PautRev",
+                "ZmbM_PatrolNormal_Autumn",
+                "ZmbM_usSoldier_normal_Woodland"
+            ]
+        },
+        "3": {
+            "name": "Wildlife Predators",
+            "classnames": [
+                "Animal_UrsusArctos",
+                "Animal_CanisLupus_Grey",
+                "Animal_CanisLupus_White"
+            ]
+        }
+    }
+}

@@ -1,0 +1,264 @@
+{
+  "globalSettings": {
+    "systemEnabled": 1,
+    "checkInterval": 15.0,
+    "maxEntitiesPerZone": 20,
+    "entityLifetime": 600,
+    "minSpawnDistanceFromPlayer": 30.0
+  },
+  "zones": [
+    {
+      "name": "NWAF_Military_Zone",
+      "enabled": 1,
+      "position": "4500 342 10500",
+      "triggerRadius": 200,
+      "spawnChance": 0.8,
+      "despawnOnExit": 1,
+      "despawnDistance": 300,
+      "respawnCooldown": 450,
+      "spawnPoints": [
+        {
+          "position": "4505 342 10505",
+          "radius": 5.0,
+          "tierIds": [2],
+          "entities": 4,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "4520 342 10480",
+          "radius": 3.0,
+          "tierIds": [2, 3],
+          "entities": 2,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Cherno_Downtown",
+      "enabled": 1,
+      "position": "6700 15 2650",
+      "triggerRadius": 150,
+      "spawnChance": 0.75,
+      "despawnOnExit": 1,
+      "despawnDistance": 200,
+      "respawnCooldown": 300,
+      "spawnPoints": [
+        {
+          "position": "6710 15 2660",
+          "radius": 8.0,
+          "tierIds": [1],
+          "entities": 6,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "6685 15 2635",
+          "radius": 4.0,
+          "tierIds": [1, 2],
+          "entities": 3,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Underground_Bunker_Alpha",
+      "enabled": 1,
+      "position": "8500 -45 12000",
+      "triggerRadius": 80,
+      "spawnChance": 0.6,
+      "despawnOnExit": 1,
+      "despawnDistance": 120,
+      "respawnCooldown": 600,
+      "spawnPoints": [
+        {
+          "position": "8500 -43.2 12000",
+          "radius": 2.0,
+          "tierIds": [2],
+          "entities": 3,
+          "useFixedHeight": 1
+        },
+        {
+          "position": "8485 -43.2 11985",
+          "radius": 1.5,
+          "tierIds": [2, 3],
+          "entities": 2,
+          "useFixedHeight": 1
+        }
+      ]
+    },
+    {
+      "name": "Forest_Wolf_Pack",
+      "enabled": 1,
+      "position": "11000 380 14500",
+      "triggerRadius": 300,
+      "spawnChance": 0.4,
+      "despawnOnExit": 1,
+      "despawnDistance": 400,
+      "respawnCooldown": 900,
+      "spawnPoints": [
+        {
+          "position": "11000 380 14500",
+          "radius": 50.0,
+          "tierIds": [3],
+          "entities": 4,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Industrial_Zombie_Horde",
+      "enabled": 1,
+      "position": "3200 15 8900",
+      "triggerRadius": 180,
+      "spawnChance": 0.9,
+      "despawnOnExit": 1,
+      "despawnDistance": 250,
+      "respawnCooldown": 240,
+      "spawnPoints": [
+        {
+          "position": "3210 15 8910",
+          "radius": 12.0,
+          "tierIds": [1],
+          "entities": 8,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "3185 15 8885",
+          "radius": 6.0,
+          "tierIds": [1, 2],
+          "entities": 4,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Hospital_Medical_Zone",
+      "enabled": 1,
+      "position": "6400 15 2580",
+      "triggerRadius": 120,
+      "spawnChance": 0.7,
+      "despawnOnExit": 1,
+      "despawnDistance": 180,
+      "respawnCooldown": 360,
+      "spawnPoints": [
+        {
+          "position": "6400 15 2580",
+          "radius": 3.0,
+          "tierIds": [1],
+          "entities": 3,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "6400 18.5 2580",
+          "radius": 2.0,
+          "tierIds": [1],
+          "entities": 2,
+          "useFixedHeight": 1
+        }
+      ]
+    },
+    {
+      "name": "Prison_Island_Elite",
+      "enabled": 1,
+      "position": "2700 15 14200",
+      "triggerRadius": 250,
+      "spawnChance": 0.5,
+      "despawnOnExit": 1,
+      "despawnDistance": 350,
+      "respawnCooldown": 720,
+      "spawnPoints": [
+        {
+          "position": "2705 15 14205",
+          "radius": 4.0,
+          "tierIds": [2, 3],
+          "entities": 5,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "2690 15 14190",
+          "radius": 6.0,
+          "tierIds": [2],
+          "entities": 3,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Bear_Cave_Mountain",
+      "enabled": 1,
+      "position": "13500 580 9500",
+      "triggerRadius": 200,
+      "spawnChance": 0.3,
+      "despawnOnExit": 1,
+      "despawnDistance": 300,
+      "respawnCooldown": 1200,
+      "spawnPoints": [
+        {
+          "position": "13500 580 9500",
+          "radius": 20.0,
+          "tierIds": [3],
+          "entities": 2,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Coastal_Survivor_Camp",
+      "enabled": 1,
+      "position": "1800 15 3200",
+      "triggerRadius": 100,
+      "spawnChance": 0.85,
+      "despawnOnExit": 1,
+      "despawnDistance": 150,
+      "respawnCooldown": 180,
+      "spawnPoints": [
+        {
+          "position": "1805 15 3205",
+          "radius": 8.0,
+          "tierIds": [1],
+          "entities": 5,
+          "useFixedHeight": 0
+        },
+        {
+          "position": "1785 15 3185",
+          "radius": 4.0,
+          "tierIds": [1],
+          "entities": 3,
+          "useFixedHeight": 0
+        }
+      ]
+    },
+    {
+      "name": "Secret_Lab_Underground",
+      "enabled": 1,
+      "position": "9800 -55 6500",
+      "triggerRadius": 60,
+      "spawnChance": 0.4,
+      "despawnOnExit": 1,
+      "despawnDistance": 100,
+      "respawnCooldown": 800,
+      "spawnPoints": [
+        {
+          "position": "9800 -53.1 6500",
+          "radius": 1.0,
+          "tierIds": [2, 3],
+          "entities": 2,
+          "useFixedHeight": 1
+        },
+        {
+          "position": "9815 -53.1 6485",
+          "radius": 2.0,
+          "tierIds": [2],
+          "entities": 3,
+          "useFixedHeight": 1
+        },
+        {
+          "position": "9785 -53.1 6515",
+          "radius": 1.5,
+          "tierIds": [3],
+          "entities": 1,
+          "useFixedHeight": 1
+        }
+      ]
+    }
+  ]
+}
