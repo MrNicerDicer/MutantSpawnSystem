@@ -14,8 +14,8 @@ class CfgPatches
             "DZ_AI"
         };
         author = "MrNicerDicer";
-        name = "Mutant Spawn System - Server Only";
-        version = "2.0";
+        name = "MutantSpawnSystem";
+        version = "1.0";
         serverOnly = 1;
     };
 };

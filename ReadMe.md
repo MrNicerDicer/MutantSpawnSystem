@@ -1,4 +1,4 @@
-# DayZ Mutant Spawn System v1.0
+# DayZ Mutant Spawn System v1.1
 
 An advanced JSON-based spawn system for DayZ 1.28 that allows spawning zombies, mutants, and animals in configurable zones.
 
@@ -259,10 +259,8 @@ Download the complete example configuration files from the GitHub repository.
 
 ## 📝 Credits & License
 
-**Created by**: Exodus DayZ Forge
-**Developer**: MrNicerDicer  
+**Created by**: [Exodus DayZ Forge](https://discord.gg/pWd8adrm)  
 **Support**: Join our Discord for help and updates
-**Discord**: [https://discord.gg/Yz8S558D6M](https://discord.gg/Yz8S558D6M)
 
 This system is free to use and modify. If you adapt or redistribute this code, please provide appropriate credits to the original creator (MrNicerDicer).
 

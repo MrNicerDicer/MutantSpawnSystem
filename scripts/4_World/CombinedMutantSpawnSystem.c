@@ -1,7 +1,8 @@
-// ============= CombinedMutantSpawnSystem.c =============
-// All components in one file to avoid load order issues
+// ============= CombinedMutantSpawnSystem_Optimized.c =============
+// Optimierte Version mit intelligentem Spatial Hashing
+// Bessere Performance als reines Polling, funktioniert aber zuverlässig
 
-// ============= PART 1: CLASS DEFINITIONS =============
+// ============= PART 1: CLASS DEFINITIONS (UNCHANGED) =============
 
 // Data structure classes that match JSON format
 class TierConfig : Managed
@@ -31,14 +32,14 @@ class SpawnPointConfig : Managed
     float radius;
     ref array<int> tierIds;
     int entities;
-    bool useFixedHeight;  // Use Y coordinate directly instead of terrain height
+    bool useFixedHeight;
     
     void SpawnPointConfig()
     {
         tierIds = new array<int>;
         radius = 2.0;
         entities = 1;
-        useFixedHeight = false;  // Default: use terrain height
+        useFixedHeight = false;
     }
 }
 
@@ -48,7 +49,7 @@ class ZoneConfig : Managed
     bool enabled;
     string position;
     float triggerRadius;
-    float spawnChance;  // Chance to spawn when triggered (0.0 - 1.0)
+    float spawnChance;
     bool despawnOnExit;
     float despawnDistance;
     float respawnCooldown;
@@ -58,7 +59,7 @@ class ZoneConfig : Managed
     {
         spawnPoints = new array<ref SpawnPointConfig>;
         enabled = true;
-        spawnChance = 1.0;  // Default: 100% chance
+        spawnChance = 1.0;
         despawnOnExit = true;
         despawnDistance = 400.0;
         respawnCooldown = 300.0;
@@ -77,7 +78,7 @@ class GlobalSettingsConfig : Managed
     void GlobalSettingsConfig()
     {
         systemEnabled = true;
-        checkInterval = 15.0;
+        checkInterval = 5.0;  // Faster checks but optimized
         maxEntitiesPerZone = 20;
         entityLifetime = 1800;
         minSpawnDistanceFromPlayer = 30.0;
@@ -139,54 +140,60 @@ class SimpleZone : Managed
     float respawnCooldown;
     ref array<ref SimpleSpawnPoint> spawnPoints;
     
+    // Optimization fields
+    float cooldownTime;
+    bool hasSpawned;
+    bool hasRolledChance;
+    ref array<Man> playersInside;
+    
     void SimpleZone()
     {
         spawnPoints = new array<ref SimpleSpawnPoint>;
+        playersInside = new array<Man>;
         enabled = true;
         spawnChance = 1.0;
         despawnOnExit = true;
         respawnCooldown = 300.0;
+        cooldownTime = 0;
+        hasSpawned = false;
+        hasRolledChance = false;
     }
 }
 
-// ============= PART 2: SPAWN MANAGER =============
+// ============= PART 2: OPTIMIZED SPAWN MANAGER =============
 
 class SimpleSpawnManager : Managed
 {
     bool m_SystemEnabled;
     float m_CheckTimer;
     float m_CheckInterval;
-    float m_LastSpawnCheck;
     float m_MinSpawnDistanceFromPlayer;
     
     ref map<int, ref SimpleTier> m_Tiers;
     ref map<string, ref SimpleZone> m_ZonesMap;
     ref GlobalSettingsConfig m_GlobalSettings;
-    ref map<string, ref array<EntityAI>> m_SpawnedEntities;
-    ref map<string, float> m_ZoneCooldowns;
-    ref map<string, bool> m_ZoneSpawnedStatus;
-    ref map<string, bool> m_ZoneRolledChance;  // Track if zone already rolled for spawn chance
+    
+    // Spatial optimization
+    ref map<int, ref array<ref SimpleZone>> m_ZoneGrid;  // Grid-based zone lookup
+    static const int GRID_SIZE = 1000;  // 1km grid cells
     
     void SimpleSpawnManager()
     {
         m_SystemEnabled = true;
         m_CheckTimer = 0.0;
-        m_CheckInterval = 15.0;
-        m_LastSpawnCheck = 0.0;
+        m_CheckInterval = 5.0;  // Check more often but smarter
         m_MinSpawnDistanceFromPlayer = 30.0;
         
         m_Tiers = new map<int, ref SimpleTier>;
         m_ZonesMap = new map<string, ref SimpleZone>;
+        m_ZoneGrid = new map<int, ref array<ref SimpleZone>>;
         m_GlobalSettings = new GlobalSettingsConfig;
-        m_SpawnedEntities = new map<string, ref array<EntityAI>>;
-        m_ZoneCooldowns = new map<string, float>;
-        m_ZoneSpawnedStatus = new map<string, bool>;
-        m_ZoneRolledChance = new map<string, bool>;
         
-        Print("[SpawnManager] === SPAWN POINT SYSTEM v2.1 INITIALIZED ===");
+        Print("[SpawnManager] === OPTIMIZED SPAWN SYSTEM v2.0 INITIALIZED ===");
         
         GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(CreateDefaultConfigs, 3000, false);
         GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(LoadAllConfigs, 8000, false);
+        GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(CleanupDeadEntities, 60000, true);
     }
     
     void CreateDefaultConfigs()
@@ -251,7 +258,7 @@ class SimpleSpawnManager : Managed
         ref ZonesContainer container = new ZonesContainer();
         
         container.globalSettings.systemEnabled = true;
-        container.globalSettings.checkInterval = 15.0;
+        container.globalSettings.checkInterval = 5.0;
         container.globalSettings.maxEntitiesPerZone = 20;
         container.globalSettings.entityLifetime = 600;
         container.globalSettings.minSpawnDistanceFromPlayer = 30.0;
@@ -262,7 +269,7 @@ class SimpleSpawnManager : Managed
         zone1.enabled = true;
         zone1.position = "6560 15 2630";
         zone1.triggerRadius = 100;
-        zone1.spawnChance = 0.75;  // 75% chance to spawn
+        zone1.spawnChance = 0.75;
         zone1.despawnOnExit = true;
         zone1.despawnDistance = 150;
         zone1.respawnCooldown = 300;
@@ -272,7 +279,7 @@ class SimpleSpawnManager : Managed
         sp1.radius = 1.5;
         sp1.tierIds.Insert(1);
         sp1.entities = 2;
-        sp1.useFixedHeight = false;  // Use terrain height
+        sp1.useFixedHeight = false;
         zone1.spawnPoints.Insert(sp1);
         
         ref SpawnPointConfig sp2 = new SpawnPointConfig();
@@ -289,7 +296,7 @@ class SimpleSpawnManager : Managed
         sp3.radius = 1.0;
         sp3.tierIds.Insert(2);
         sp3.entities = 3;
-        sp3.useFixedHeight = true;  // Use exact Y coordinate (for upper floor)
+        sp3.useFixedHeight = true;
         zone1.spawnPoints.Insert(sp3);
         
         container.zones.Insert(zone1);
@@ -298,19 +305,19 @@ class SimpleSpawnManager : Managed
         ref ZoneConfig zone2 = new ZoneConfig();
         zone2.name = "Test_Zone_Underground_Bunker";
         zone2.enabled = true;
-        zone2.position = "-1000 -50 -1000";  // Bunker outside map
+        zone2.position = "-1000 -50 -1000";
         zone2.triggerRadius = 80;
-        zone2.spawnChance = 0.5;  // 50% chance - more random
+        zone2.spawnChance = 0.5;
         zone2.despawnOnExit = true;
         zone2.despawnDistance = 120;
         zone2.respawnCooldown = 420;
         
         ref SpawnPointConfig sp4 = new SpawnPointConfig();
-        sp4.position = "-1000 -48.5 -995";  // Exact bunker floor height
+        sp4.position = "-1000 -48.5 -995";
         sp4.radius = 2.0;
         sp4.tierIds.Insert(2);
         sp4.entities = 2;
-        sp4.useFixedHeight = true;  // IMPORTANT for bunker!
+        sp4.useFixedHeight = true;
         zone2.spawnPoints.Insert(sp4);
         
         ref SpawnPointConfig sp5 = new SpawnPointConfig();
@@ -319,7 +326,7 @@ class SimpleSpawnManager : Managed
         sp5.tierIds.Insert(1);
         sp5.tierIds.Insert(2);
         sp5.entities = 3;
-        sp5.useFixedHeight = true;  // IMPORTANT for bunker!
+        sp5.useFixedHeight = true;
         zone2.spawnPoints.Insert(sp5);
         
         ref SpawnPointConfig sp6 = new SpawnPointConfig();
@@ -327,13 +334,13 @@ class SimpleSpawnManager : Managed
         sp6.radius = 2.5;
         sp6.tierIds.Insert(2);
         sp6.entities = 1;
-        sp6.useFixedHeight = true;  // IMPORTANT for bunker!
+        sp6.useFixedHeight = true;
         zone2.spawnPoints.Insert(sp6);
         
         container.zones.Insert(zone2);
         
         JsonFileLoader<ZonesContainer>.JsonSaveFile(filePath, container);
-        Print("[SpawnManager] Created default Zones.json with 2 example zones (including bunker)");
+        Print("[SpawnManager] Created default Zones.json with 2 example zones");
     }
     
     void LoadAllConfigs()
@@ -342,13 +349,11 @@ class SimpleSpawnManager : Managed
         
         m_Tiers.Clear();
         m_ZonesMap.Clear();
-        m_SpawnedEntities.Clear();
-        m_ZoneCooldowns.Clear();
-        m_ZoneSpawnedStatus.Clear();
-        m_ZoneRolledChance.Clear();
+        m_ZoneGrid.Clear();
         
         LoadTiers();
         LoadZones();
+        BuildSpatialGrid();
         
         Print("[SpawnManager] Configuration loaded:");
         Print("[SpawnManager] - Tiers: " + m_Tiers.Count().ToString());
@@ -411,8 +416,8 @@ class SimpleSpawnManager : Managed
             if (container.globalSettings)
             {
                 m_GlobalSettings = container.globalSettings;
-                m_CheckInterval = m_GlobalSettings.checkInterval;
                 m_SystemEnabled = m_GlobalSettings.systemEnabled;
+                m_CheckInterval = m_GlobalSettings.checkInterval;
                 m_MinSpawnDistanceFromPlayer = m_GlobalSettings.minSpawnDistanceFromPlayer;
                 
                 Print("[SpawnManager] Loaded global settings");
@@ -459,10 +464,6 @@ class SimpleSpawnManager : Managed
                         }
                         
                         m_ZonesMap.Set(zone.name, zone);
-                        m_SpawnedEntities.Set(zone.name, new array<EntityAI>);
-                        m_ZoneCooldowns.Set(zone.name, 0.0);
-                        m_ZoneSpawnedStatus.Set(zone.name, false);
-                        m_ZoneRolledChance.Set(zone.name, false);
                         
                         Print("[SpawnManager] Loaded zone: " + zone.name);
                         Print("[SpawnManager]   Spawn chance: " + (zone.spawnChance * 100).ToString() + "%");
@@ -473,44 +474,74 @@ class SimpleSpawnManager : Managed
         }
     }
     
+    void BuildSpatialGrid()
+    {
+        // Build spatial grid for optimized zone lookups
+        for (int i = 0; i < m_ZonesMap.Count(); i++)
+        {
+            ref SimpleZone zone = m_ZonesMap.GetElement(i);
+            if (zone)
+            {
+                // Calculate grid cells that this zone overlaps
+                float radius = zone.triggerRadius + zone.despawnDistance;
+                int minX = Math.Floor((zone.position[0] - radius) / GRID_SIZE);
+                int maxX = Math.Floor((zone.position[0] + radius) / GRID_SIZE);
+                int minZ = Math.Floor((zone.position[2] - radius) / GRID_SIZE);
+                int maxZ = Math.Floor((zone.position[2] + radius) / GRID_SIZE);
+                
+                // Add zone to all overlapping grid cells
+                for (int x = minX; x <= maxX; x++)
+                {
+                    for (int z = minZ; z <= maxZ; z++)
+                    {
+                        int gridKey = (x * 10000) + z;  // Simple hash
+                        
+                        ref array<ref SimpleZone> cellZones;
+                        if (!m_ZoneGrid.Find(gridKey, cellZones))
+                        {
+                            cellZones = new array<ref SimpleZone>;
+                            m_ZoneGrid.Set(gridKey, cellZones);
+                        }
+                        cellZones.Insert(zone);
+                    }
+                }
+            }
+        }
+        
+        Print("[SpawnManager] Built spatial grid with " + m_ZoneGrid.Count().ToString() + " cells");
+    }
+    
     void Update(float timeslice)
     {
         if (!m_SystemEnabled) return;
         
         m_CheckTimer += timeslice;
         
-        for (int i = 0; i < m_ZoneCooldowns.Count(); i++)
+        // Update zone cooldowns
+        for (int i = 0; i < m_ZonesMap.Count(); i++)
         {
-            string zoneName = m_ZoneCooldowns.GetKey(i);
-            float cooldown = m_ZoneCooldowns.GetElement(i);
-            
-            if (cooldown > 0)
+            ref SimpleZone zone = m_ZonesMap.GetElement(i);
+            if (zone && zone.cooldownTime > 0)
             {
-                cooldown -= timeslice;
-                if (cooldown <= 0)
+                zone.cooldownTime -= timeslice;
+                if (zone.cooldownTime <= 0)
                 {
-                    cooldown = 0;
-                    m_ZoneSpawnedStatus.Set(zoneName, false);
-                    m_ZoneRolledChance.Set(zoneName, false);  // Reset chance roll
+                    zone.cooldownTime = 0;
+                    zone.hasSpawned = false;
+                    zone.hasRolledChance = false;
                 }
-                m_ZoneCooldowns.Set(zoneName, cooldown);
             }
         }
         
+        // Check zones
         if (m_CheckTimer >= m_CheckInterval)
         {
             m_CheckTimer = 0.0;
-            CheckAllPlayers();
-        }
-        
-        if (GetGame().GetTime() - m_LastSpawnCheck > 30000)
-        {
-            CleanupDeadEntities();
-            m_LastSpawnCheck = GetGame().GetTime();
+            CheckPlayersOptimized();
         }
     }
     
-    void CheckAllPlayers()
+    void CheckPlayersOptimized()
     {
         if (m_Tiers.Count() == 0 || m_ZonesMap.Count() == 0)
             return;
@@ -521,70 +552,127 @@ class SimpleSpawnManager : Managed
         if (players.Count() == 0)
             return;
         
-        for (int zoneIdx = 0; zoneIdx < m_ZonesMap.Count(); zoneIdx++)
+        // Track which zones have been checked
+        ref set<ref SimpleZone> checkedZones = new set<ref SimpleZone>;
+        
+        // For each player, only check zones in nearby grid cells
+        for (int p = 0; p < players.Count(); p++)
         {
-            string zoneName = m_ZonesMap.GetKey(zoneIdx);
-            ref SimpleZone zone = m_ZonesMap.GetElement(zoneIdx);
+            Man player = players.Get(p);
+            if (!player || !player.IsAlive())
+                continue;
             
-            if (!zone || !zone.enabled) continue;
+            vector playerPos = player.GetPosition();
             
-            bool anyPlayerInTrigger = false;
-            float closestPlayerDistance = 999999.0;
+            // Get grid cell for player
+            int gridX = Math.Floor(playerPos[0] / GRID_SIZE);
+            int gridZ = Math.Floor(playerPos[2] / GRID_SIZE);
             
-            for (int playerIdx = 0; playerIdx < players.Count(); playerIdx++)
+            // Check surrounding grid cells (3x3 area)
+            for (int dx = -1; dx <= 1; dx++)
             {
-                Man player = players.Get(playerIdx);
-                if (player && player.IsAlive())
+                for (int dz = -1; dz <= 1; dz++)
                 {
-                    float distance = vector.Distance(player.GetPosition(), zone.position);
+                    int gridKey = ((gridX + dx) * 10000) + (gridZ + dz);
                     
-                    if (distance < closestPlayerDistance)
-                        closestPlayerDistance = distance;
-                    
-                    if (distance <= zone.triggerRadius)
-                        anyPlayerInTrigger = true;
+                    ref array<ref SimpleZone> cellZones;
+                    if (m_ZoneGrid.Find(gridKey, cellZones))
+                    {
+                        for (int z = 0; z < cellZones.Count(); z++)
+                        {
+                            ref SimpleZone zone = cellZones.Get(z);
+                            
+                            // Skip if already checked
+                            if (checkedZones.Find(zone) != -1)
+                                continue;
+                            
+                            checkedZones.Insert(zone);
+                            
+                            if (!zone || !zone.enabled)
+                                continue;
+                            
+                            // Check this zone against all players
+                            CheckZone(zone, players);
+                        }
+                    }
                 }
-            }
-            
-            if (anyPlayerInTrigger)
-            {
-                CheckAndSpawnInZone(zone, players);
-            }
-            else if (zone.despawnOnExit && closestPlayerDistance > zone.despawnDistance)
-            {
-                DespawnFromZone(zone);
             }
         }
     }
     
-    void CheckAndSpawnInZone(ref SimpleZone zone, array<Man> players)
+    void CheckZone(ref SimpleZone zone, array<Man> players)
     {
-        float cooldown;
-        if (m_ZoneCooldowns.Find(zone.name, cooldown) && cooldown > 0)
+        array<Man> currentPlayersInside = new array<Man>;
+        float closestPlayerDistance = 999999.0;
+        
+        // Check which players are in zone
+        for (int i = 0; i < players.Count(); i++)
+        {
+            Man player = players.Get(i);
+            if (player && player.IsAlive())
+            {
+                float distSq = vector.DistanceSq(player.GetPosition(), zone.position);
+                float dist = Math.Sqrt(distSq);
+                
+                if (dist < closestPlayerDistance)
+                    closestPlayerDistance = dist;
+                
+                if (dist <= zone.triggerRadius)
+                {
+                    currentPlayersInside.Insert(player);
+                }
+            }
+        }
+        
+        // Check for state changes
+        bool wasEmpty = (zone.playersInside.Count() == 0);
+        bool isEmpty = (currentPlayersInside.Count() == 0);
+        
+        // Players entered
+        if (wasEmpty && !isEmpty)
+        {
+            zone.playersInside = currentPlayersInside;
+            TrySpawnInZone(zone, currentPlayersInside);
+        }
+        // Players left
+        else if (!wasEmpty && isEmpty)
+        {
+            zone.playersInside.Clear();
+            if (zone.despawnOnExit && closestPlayerDistance > zone.despawnDistance)
+            {
+                DespawnFromZone(zone);
+            }
+        }
+        // Update player list
+        else
+        {
+            zone.playersInside = currentPlayersInside;
+        }
+    }
+    
+    void TrySpawnInZone(ref SimpleZone zone, array<Man> playersInZone)
+    {
+        // Check cooldown
+        if (zone.cooldownTime > 0)
             return;
         
-        bool hasSpawned;
-        if (m_ZoneSpawnedStatus.Find(zone.name, hasSpawned) && hasSpawned)
-            return;
-        
-        // Check if we already rolled for spawn chance
-        bool hasRolled;
-        if (m_ZoneRolledChance.Find(zone.name, hasRolled) && hasRolled)
+        // Check if already spawned
+        if (zone.hasSpawned)
             return;
         
         // Roll spawn chance
-        float roll = Math.RandomFloat(0.0, 1.0);
-        m_ZoneRolledChance.Set(zone.name, true);
-        
-        if (roll > zone.spawnChance)
+        if (!zone.hasRolledChance)
         {
-            // Failed spawn chance roll
-            Print("[SpawnManager] Zone " + zone.name + " failed spawn chance (rolled " + (roll * 100).ToString() + "%, needed <" + (zone.spawnChance * 100).ToString() + "%)");
-            m_ZoneCooldowns.Set(zone.name, zone.respawnCooldown);  // Set cooldown even on failed roll
-            return;
+            float roll = Math.RandomFloat(0.0, 1.0);
+            zone.hasRolledChance = true;
+            
+            if (roll > zone.spawnChance)
+            {
+                Print("[SpawnManager] Zone " + zone.name + " failed spawn chance");
+                zone.cooldownTime = zone.respawnCooldown;
+                return;
+            }
         }
-        
-        Print("[SpawnManager] Zone " + zone.name + " passed spawn chance (rolled " + (roll * 100).ToString() + "%)");
         
         if (!zone.spawnPoints || zone.spawnPoints.Count() == 0)
             return;
@@ -597,19 +685,13 @@ class SimpleSpawnManager : Managed
         
         int totalSpawned = 0;
         
-        // Spawn exact number of entities at each spawn point
         for (int i = 0; i < zone.spawnPoints.Count(); i++)
         {
             ref SimpleSpawnPoint point = zone.spawnPoints.Get(i);
             
-            // Check if spawn point is safe from players
-            if (!IsSpawnPointSafe(point, players))
-            {
-                Print("[SpawnManager] Spawn point " + (i+1).ToString() + " too close to player, skipping");
+            if (!IsSpawnPointSafe(point, playersInZone))
                 continue;
-            }
             
-            // Spawn exact number of entities defined for this point
             for (int j = 0; j < point.entities; j++)
             {
                 if (SpawnEntityAtPoint(zone, point))
@@ -621,12 +703,8 @@ class SimpleSpawnManager : Managed
         
         if (totalSpawned > 0)
         {
-            m_ZoneSpawnedStatus.Set(zone.name, true);
+            zone.hasSpawned = true;
             Print("[SpawnManager] Spawned " + totalSpawned.ToString() + " entities in zone " + zone.name);
-        }
-        else
-        {
-            Print("[SpawnManager] Could not spawn in zone " + zone.name + " (all spawn points too close to players)");
         }
     }
     
@@ -652,7 +730,6 @@ class SimpleSpawnManager : Managed
         if (point.tierIds.Count() == 0)
             return false;
         
-        // Check if point already has max entities
         if (point.spawnedEntities.Count() >= point.entities)
             return false;
         
@@ -675,16 +752,12 @@ class SimpleSpawnManager : Managed
             spawnPos[2] = spawnPos[2] + (Math.Sin(angle) * distance);
         }
         
-        // Use fixed height or terrain height
         if (point.useFixedHeight)
         {
-            // Keep the Y coordinate from the config (for bunkers, upper floors, etc.)
             spawnPos[1] = point.position[1] + 0.5;
-            Print("[SpawnManager] Using fixed height: " + spawnPos[1].ToString());
         }
         else
         {
-            // Use terrain height (normal spawning)
             spawnPos[1] = GetGame().SurfaceY(spawnPos[0], spawnPos[2]) + 0.5;
         }
         
@@ -696,20 +769,11 @@ class SimpleSpawnManager : Managed
             
             point.spawnedEntities.Insert(entity);
             
-            ref array<EntityAI> zoneEntities;
-            if (!m_SpawnedEntities.Find(zone.name, zoneEntities))
-            {
-                zoneEntities = new array<EntityAI>;
-                m_SpawnedEntities.Set(zone.name, zoneEntities);
-            }
-            zoneEntities.Insert(entity);
-            
             if (m_GlobalSettings.entityLifetime > 0)
             {
                 GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(CleanupEntity, m_GlobalSettings.entityLifetime * 1000, false, entity);
             }
             
-            Print("[SpawnManager] Spawned " + entityClass + " at point (" + point.spawnedEntities.Count().ToString() + "/" + point.entities.ToString() + ")");
             return true;
         }
         
@@ -764,17 +828,12 @@ class SimpleSpawnManager : Managed
             point.spawnedEntities.Clear();
         }
         
-        ref array<EntityAI> zoneEntities;
-        if (m_SpawnedEntities.Find(zone.name, zoneEntities))
-        {
-            zoneEntities.Clear();
-        }
-        
         if (totalDespawned > 0)
         {
-            m_ZoneCooldowns.Set(zone.name, zone.respawnCooldown);
-            m_ZoneSpawnedStatus.Set(zone.name, false);
-            m_ZoneRolledChance.Set(zone.name, false);  // Reset chance roll
+            zone.cooldownTime = zone.respawnCooldown;
+            zone.hasSpawned = false;
+            zone.hasRolledChance = false;
+            Print("[SpawnManager] Despawned " + totalDespawned.ToString() + " entities from zone " + zone.name);
         }
     }
     
@@ -787,15 +846,11 @@ class SimpleSpawnManager : Managed
             {
                 CleanupSpawnPointEntities(zone);
                 
-                if (CountZoneEntities(zone) == 0)
+                if (CountZoneEntities(zone) == 0 && zone.hasSpawned)
                 {
-                    bool wasSpawned;
-                    if (m_ZoneSpawnedStatus.Find(zone.name, wasSpawned) && wasSpawned)
-                    {
-                        m_ZoneCooldowns.Set(zone.name, zone.respawnCooldown);
-                        m_ZoneSpawnedStatus.Set(zone.name, false);
-                        m_ZoneRolledChance.Set(zone.name, false);  // Reset chance roll
-                    }
+                    zone.cooldownTime = zone.respawnCooldown;
+                    zone.hasSpawned = false;
+                    zone.hasRolledChance = false;
                 }
             }
         }
@@ -832,10 +887,12 @@ class SimpleSpawnManager : Managed
         Print("[SpawnManager] Enabled: " + m_SystemEnabled.ToString());
         Print("[SpawnManager] Tiers: " + m_Tiers.Count().ToString());
         Print("[SpawnManager] Zones: " + m_ZonesMap.Count().ToString());
+        Print("[SpawnManager] Grid cells: " + m_ZoneGrid.Count().ToString());
         
         int totalSpawnPoints = 0;
         int totalPossibleEntities = 0;
         int totalActiveEntities = 0;
+        int zonesWithPlayers = 0;
         
         for (int i = 0; i < m_ZonesMap.Count(); i++)
         {
@@ -860,22 +917,29 @@ class SimpleSpawnManager : Managed
                 totalPossibleEntities += zonePossibleEntities;
                 totalActiveEntities += zoneEntityCount;
                 
-                Print("[SpawnManager] Zone: " + zone.name);
-                Print("[SpawnManager]   Trigger: " + zone.triggerRadius.ToString() + "m, Chance: " + (zone.spawnChance * 100).ToString() + "%");
-                Print("[SpawnManager]   Points: " + zone.spawnPoints.Count().ToString());
+                if (zone.playersInside.Count() > 0)
+                {
+                    zonesWithPlayers++;
+                    Print("[SpawnManager] Zone: " + zone.name + " [ACTIVE]");
+                    Print("[SpawnManager]   Players inside: " + zone.playersInside.Count().ToString());
+                }
+                else
+                {
+                    Print("[SpawnManager] Zone: " + zone.name);
+                }
+                
                 Print("[SpawnManager]   Entities: " + zoneEntityCount.ToString() + "/" + zonePossibleEntities.ToString());
                 
-                float cooldown;
-                if (m_ZoneCooldowns.Find(zoneName, cooldown) && cooldown > 0)
+                if (zone.cooldownTime > 0)
                 {
-                    Print("[SpawnManager]   Cooldown: " + cooldown.ToString() + "s");
+                    Print("[SpawnManager]   Cooldown: " + zone.cooldownTime.ToString() + "s");
                 }
             }
         }
         
         Print("[SpawnManager] === TOTALS ===");
-        Print("[SpawnManager] Total Spawn Points: " + totalSpawnPoints.ToString());
-        Print("[SpawnManager] Total Active: " + totalActiveEntities.ToString() + "/" + totalPossibleEntities.ToString());
+        Print("[SpawnManager] Active zones: " + zonesWithPlayers.ToString() + "/" + m_ZonesMap.Count().ToString());
+        Print("[SpawnManager] Total entities: " + totalActiveEntities.ToString() + "/" + totalPossibleEntities.ToString());
     }
 }
 
@@ -891,7 +955,7 @@ void InitMutantSpawnSystem()
         return;
     }
     
-    Print("[MutantWorld] === INITIALIZING SPAWN POINT SYSTEM ===");
+    Print("[MutantWorld] === INITIALIZING OPTIMIZED SPAWN SYSTEM ===");
     g_SpawnManager = new SimpleSpawnManager();
 }
 
@@ -974,12 +1038,13 @@ void ForceSpawnInNearestZone()
     {
         Print("[DEBUG] Nearest zone: " + nearestZoneName + " at " + nearestDistance.ToString() + "m");
         
-        // Clear zone status
-        g_SpawnManager.m_ZoneCooldowns.Set(nearestZoneName, 0.0);
-        g_SpawnManager.m_ZoneSpawnedStatus.Set(nearestZoneName, false);
-        g_SpawnManager.m_ZoneRolledChance.Set(nearestZoneName, false);
+        // Reset zone state
+        nearestZone.cooldownTime = 0;
+        nearestZone.hasSpawned = false;
+        nearestZone.hasRolledChance = false;
+        nearestZone.spawnChance = 1.0;  // Force 100% chance
         
-        // Clear existing entities in all spawn points
+        // Clear existing entities
         for (int j = 0; j < nearestZone.spawnPoints.Count(); j++)
         {
             ref SimpleSpawnPoint point = nearestZone.spawnPoints.Get(j);
@@ -989,22 +1054,10 @@ void ForceSpawnInNearestZone()
             }
         }
         
-        // Clear zone entity list
-        ref array<EntityAI> entities;
-        if (g_SpawnManager.m_SpawnedEntities.Find(nearestZoneName, entities))
-        {
-            entities.Clear();
-        }
-        
-        // Set spawn chance to 100% temporarily for forced spawn
-        float originalChance = nearestZone.spawnChance;
-        nearestZone.spawnChance = 1.0;
-        
         // Force spawn
-        g_SpawnManager.CheckAndSpawnInZone(nearestZone, players);
-        
-        // Restore original spawn chance
-        nearestZone.spawnChance = originalChance;
+        array<Man> forcePlayers = new array<Man>;
+        forcePlayers.Insert(player);
+        g_SpawnManager.TrySpawnInZone(nearestZone, forcePlayers);
     }
     else
     {
@@ -1024,7 +1077,6 @@ void ClearAllSpawnedEntities()
     
     int totalCleared = 0;
     
-    // Clear all zones
     for (int i = 0; i < g_SpawnManager.m_ZonesMap.Count(); i++)
     {
         string zoneName = g_SpawnManager.m_ZonesMap.GetKey(i);
@@ -1032,40 +1084,14 @@ void ClearAllSpawnedEntities()
         
         if (zone)
         {
-            // Clear spawn point entities
-            for (int j = 0; j < zone.spawnPoints.Count(); j++)
-            {
-                ref SimpleSpawnPoint point = zone.spawnPoints.Get(j);
-                if (point)
-                {
-                    for (int k = 0; k < point.spawnedEntities.Count(); k++)
-                    {
-                        EntityAI entity = point.spawnedEntities.Get(k);
-                        if (entity)
-                        {
-                            entity.Delete();
-                            totalCleared++;
-                        }
-                    }
-                    point.spawnedEntities.Clear();
-                }
-            }
+            g_SpawnManager.DespawnFromZone(zone);
+            zone.cooldownTime = 0;
+            zone.hasSpawned = false;
+            zone.hasRolledChance = false;
         }
-        
-        // Clear zone entity list
-        ref array<EntityAI> entities;
-        if (g_SpawnManager.m_SpawnedEntities.Find(zoneName, entities))
-        {
-            entities.Clear();
-        }
-        
-        // Reset zone status
-        g_SpawnManager.m_ZoneSpawnedStatus.Set(zoneName, false);
-        g_SpawnManager.m_ZoneCooldowns.Set(zoneName, 0.0);
-        g_SpawnManager.m_ZoneRolledChance.Set(zoneName, false);
     }
     
-    Print("[DEBUG] Cleared " + totalCleared.ToString() + " entities total");
+    Print("[DEBUG] Cleared all entities");
 }
 
 // Quick Commands
@@ -1075,60 +1101,20 @@ void QuickToggle() { if (g_SpawnManager) g_SpawnManager.ToggleSystem(); }
 void QuickSpawn() { ForceSpawnInNearestZone(); }
 void QuickClear() { ClearAllSpawnedEntities(); }
 
-// Main Debug Entry Points
-void DebugSpawnSystem()
-{
-    Print("[DEBUG] === SPAWN SYSTEM DEBUG ===");
-    Print("[DEBUG] g_SpawnManager exists: " + (g_SpawnManager != null).ToString());
-    
-    if (g_SpawnManager)
-    {
-        g_SpawnManager.PrintStatus();
-    }
-}
+// ============= PART 5: AUTO-INIT =============
 
-void ReloadSpawnSystem()
-{
-    Print("[DEBUG] === RELOADING SPAWN SYSTEM ===");
-    
-    if (g_SpawnManager)
-    {
-        g_SpawnManager.ForceReload();
-    }
-}
-
-void ToggleSpawnSystem()
-{
-    Print("[DEBUG] === TOGGLING SPAWN SYSTEM ===");
-    
-    if (g_SpawnManager)
-    {
-        g_SpawnManager.ToggleSystem();
-    }
-}
-
-// ============= PART 5: AUTO-INIT (WITHOUT MISSIONSERVER) =============
-
-// Auto-Init when mod loads
 void MutantSpawnSystem_AutoInit()
 {
     Print("[MutantSpawn] === AUTO-INIT STARTING ===");
-    
-    // Wait until game is ready
     GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(MutantSpawnSystem_DelayedInit, 10000, false);
 }
 
 void MutantSpawnSystem_DelayedInit()
 {
     Print("[MutantSpawn] === DELAYED INIT STARTING ===");
-    
-    // Initialize the spawn system
     InitMutantSpawnSystem();
-    
-    // Start the update loop
     GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(MutantSpawnSystem_UpdateLoop, 1000, true);
-    
-    Print("[MutantSpawn] === SPAWN SYSTEM ACTIVE ===");
+    Print("[MutantSpawn] === OPTIMIZED SPAWN SYSTEM ACTIVE ===");
 }
 
 void MutantSpawnSystem_UpdateLoop()
