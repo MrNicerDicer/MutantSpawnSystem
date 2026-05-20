@@ -763,26 +763,14 @@ When asking for help, include:
 ## Credits
 
 Created by:
-
-```text
 MrNicerDicer
-```
 
 Community:
-
-```text
 Exodus DayZ Forge
-```
-
-GitHub:
-```text
-https://github.com/MrNicerDicer/MutantSpawnSystem
-```
 
 Support development:
-```text
+
 https://ko-fi.com/mrnicerdicer
-```
 
 MZSS is free to use and free to repack.
 If you redistribute modified versions, please credit the original author.
